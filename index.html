@@ -20,6 +20,7 @@
     <meta property="og:title" content="Easy review!" />
     <meta property="og:description" content="反復学習・復習管理ウェブアプリ" />
     <meta property="og:type" content="website" />
+    <link rel="stylesheet" crossorigin href="./assets/index.css">
   </head>
   <body>
     <div id="root"></div>
@@ -38,7 +39,16 @@
         }).catch(() => {});
       }
     </script>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module">
+      const isDev = window.location.port === '3000' || window.location.hostname === 'localhost' || window.location.hostname.includes('run.app');
+      if (isDev) {
+        import('/src/main.tsx');
+      } else {
+        import(/* @vite-ignore */ './assets/index.js').catch(() => {
+          import('/src/main.tsx');
+        });
+      }
+    </script>
   </body>
 </html>
 
