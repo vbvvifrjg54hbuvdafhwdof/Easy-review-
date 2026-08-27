@@ -1,12 +1,18 @@
-import { AppState } from '../types';
+import { AppState, Preset } from '../types';
 import { DEFAULT_PERIOD_TIMES } from './date';
 
 export const STORAGE_KEY = "easyReviewAppData_v3";
 
+export const DEFAULT_PRESETS: Preset[] = [
+  { id: 'preset-standard', name: '標準 (1, 3, 7, 14, 30日後)', steps: [1, 3, 7, 14, 30] },
+  { id: 'preset-short', name: '短期集中 (1, 2, 4, 7日後)', steps: [1, 2, 4, 7] },
+  { id: 'preset-quick', name: '翌日のみ (1日後)', steps: [1] }
+];
+
 export function defaultState(): AppState {
   return {
     units: [],
-    presets: [],
+    presets: JSON.parse(JSON.stringify(DEFAULT_PRESETS)),
     someday: [],
     schedule: [],
     subjects: [],
@@ -26,9 +32,14 @@ export function loadState(): AppState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
+      const presets =
+        Array.isArray(parsed.presets) && parsed.presets.length > 0
+          ? parsed.presets
+          : JSON.parse(JSON.stringify(DEFAULT_PRESETS));
+
       return {
         units: Array.isArray(parsed.units) ? parsed.units : [],
-        presets: Array.isArray(parsed.presets) ? parsed.presets : [],
+        presets,
         someday: Array.isArray(parsed.someday) ? parsed.someday : [],
         schedule: Array.isArray(parsed.schedule) ? parsed.schedule : [],
         subjects: Array.isArray(parsed.subjects) ? parsed.subjects : [],
