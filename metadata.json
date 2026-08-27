@@ -1,0 +1,6 @@
+{
+  "name": "Easy review!",
+  "description": "反復学習・復習管理PWAウェブアプリケーション",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
