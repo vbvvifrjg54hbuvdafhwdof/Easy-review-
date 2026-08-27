@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build && node -e \"const fs=require('fs'); fs.cpSync('dist/assets', 'assets', {recursive: true}); fs.copyFileSync('dist/icon.svg', 'icon.svg'); fs.copyFileSync('dist/manifest.json', 'manifest.json'); fs.copyFileSync('dist/sw.js', 'sw.js'); fs.copyFileSync('dist/404.html', '404.html');\"",
+    "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
