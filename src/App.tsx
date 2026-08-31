@@ -31,6 +31,7 @@ import {
 } from './utils/date';
 import { createCustomColor } from './utils/color';
 import { defaultState, loadState, saveState } from './utils/storage';
+import { useNavigationHistory } from './hooks/useNavigationHistory';
 
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
@@ -128,14 +129,34 @@ export default function App() {
   const dayCutoff = state.settings?.dayCutoffHour || 0;
   const today = getToday(dayCutoff);
 
+  // Browser and device back button history navigation hook
+  const { goBackOrClose, pushModalState, handleTabChangeWithHistory } = useNavigationHistory({
+    activeTab,
+    setActiveTab,
+    setTabDirection,
+    prevTabRef,
+    tabIndexMap: TAB_INDEX_MAP,
+    settingsOpen,
+    setSettingsOpen,
+    presetModalOpen,
+    setPresetModalOpen,
+    classEditModalOpen,
+    setClassEditModalOpen,
+    calendarDayModal,
+    setCalendarDayModal,
+    memoEditModal,
+    setMemoEditModal,
+    confirmModal,
+    setConfirmModal,
+    deleteConfirm,
+    setDeleteConfirm,
+    finalChoiceId,
+    setFinalChoiceId,
+    showToast
+  });
+
   const handleSelectTab = (newTab: TabType) => {
-    if (newTab === activeTab) return;
-    const oldIdx = TAB_INDEX_MAP[activeTab];
-    const newIdx = TAB_INDEX_MAP[newTab];
-    setTabDirection(newIdx > oldIdx ? 1 : -1);
-    prevTabRef.current = activeTab;
-    setActiveTab(newTab);
-    setFinalChoiceId(null);
+    handleTabChangeWithHistory(newTab);
   };
 
   // Calculate pending stock items from finished classes
@@ -198,6 +219,7 @@ export default function App() {
     if (!u) return;
     const isLast = u.stepIndex >= u.steps.length - 1;
     if (isLast) {
+      pushModalState('finalChoice', { unitId: u.id });
       setFinalChoiceId(u.id);
       return;
     }
@@ -219,6 +241,7 @@ export default function App() {
   };
 
   const handleRequestFinalPick = (unitId: string, type: 'end' | 'continue') => {
+    pushModalState('confirmFinal', { unitId, type });
     setConfirmModal({ type, unitId });
   };
 
@@ -251,8 +274,7 @@ export default function App() {
         showToast('復習を継続しました');
       }
     }
-    setConfirmModal(null);
-    setFinalChoiceId(null);
+    goBackOrClose();
   };
 
   const handleAddUnit = (name: string, date: string, presetId: string, memo: string) => {
@@ -430,7 +452,7 @@ export default function App() {
       }));
       showToast('プリセットを作成しました');
     }
-    setPresetModalOpen(false);
+    goBackOrClose();
   };
 
   const handleSubmitClassDraft = (
@@ -478,6 +500,7 @@ export default function App() {
     id: string,
     label: string
   ) => {
+    pushModalState('deleteConfirm', { kind, id, label });
     setDeleteConfirm({ kind, id, label });
   };
 
@@ -526,7 +549,7 @@ export default function App() {
         showToast('カラーを削除しました');
         break;
     }
-    setDeleteConfirm(null);
+    goBackOrClose();
   };
 
   const handleAddCustomColor = (hex: string): string => {
@@ -545,7 +568,7 @@ export default function App() {
       ...prev,
       units: prev.units.map((u) => (u.id === unitId ? { ...u, memo: memo.trim() } : u))
     }));
-    setMemoEditModal(null);
+    goBackOrClose();
     showToast('メモを保存しました');
   };
 
@@ -615,7 +638,10 @@ export default function App() {
       <Header
         activeTab={activeTab}
         dayCutoffHour={dayCutoff}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={() => {
+          pushModalState('settings');
+          setSettingsOpen(true);
+        }}
       />
 
       {/* Main Tab Area with Fast and Smooth Tab Transitions */}
@@ -644,7 +670,10 @@ export default function App() {
                 onRequestFinalPick={handleRequestFinalPick}
                 onOpenMemoModal={(id) => {
                   const u = findUnit(id);
-                  if (u) setMemoEditModal({ unitId: u.id, memo: u.memo || '' });
+                  if (u) {
+                    pushModalState('memo', { unitId: u.id });
+                    setMemoEditModal({ unitId: u.id, memo: u.memo || '' });
+                  }
                 }}
                 onAskDeleteUnit={(id, name) => handleAskDelete('unit', id, name)}
               />
@@ -660,10 +689,12 @@ export default function App() {
                 dayCutoffHour={dayCutoff}
                 onAddUnit={handleAddUnit}
                 onOpenPresetModal={() => {
+                  pushModalState('preset');
                   setPresetDraft({ id: null, name: '', steps: [1] });
                   setPresetModalOpen(true);
                 }}
                 onOpenClassEditModal={() => {
+                  pushModalState('classEdit');
                   setClassEditDraft({
                     id: null,
                     day: '月',
@@ -720,7 +751,10 @@ export default function App() {
                 }}
                 onSelectDate={(date) => setCalendarSelectedDate(date)}
                 onSearchChange={(q) => setCalendarSearchQuery(q)}
-                onOpenDayDetail={(date) => setCalendarDayModal(date)}
+                onOpenDayDetail={(date) => {
+                  pushModalState('dayDetail', { date });
+                  setCalendarDayModal(date);
+                }}
                 onToggleCanceledClass={handleToggleCanceledClass}
               />
             )}
@@ -743,7 +777,7 @@ export default function App() {
             key="settings-modal"
             dayCutoffHour={dayCutoff}
             holidayRanges={state.holidayRanges}
-            onClose={() => setSettingsOpen(false)}
+            onClose={goBackOrClose}
             onUpdateDayCutoff={(h) => {
               setState((prev) => ({
                 ...prev,
@@ -754,6 +788,7 @@ export default function App() {
             onAddHolidayRange={handleAddHolidayRange}
             onAskDeleteHolidayRange={(id, label) => handleAskDelete('holidayRange', id, label)}
             onOpenPresetModal={() => {
+              pushModalState('preset');
               setPresetDraft({ id: null, name: '', steps: [1] });
               setPresetModalOpen(true);
               setSettingsOpen(false);
@@ -768,7 +803,7 @@ export default function App() {
             key="preset-modal"
             presets={state.presets}
             draft={presetDraft}
-            onClose={() => setPresetModalOpen(false)}
+            onClose={goBackOrClose}
             onSavePreset={handleSavePreset}
             onEditPreset={(p) => {
               setPresetDraft({ id: p.id, name: p.name, steps: [...p.steps] });
@@ -784,7 +819,7 @@ export default function App() {
             schedule={state.schedule}
             periodCount={state.periodCount}
             customColors={state.customColors}
-            onClose={() => setClassEditModalOpen(false)}
+            onClose={goBackOrClose}
             onSubmitDraft={handleSubmitClassDraft}
             onEditItem={(item: ScheduleItem) => {
               setClassEditDraft({
@@ -817,7 +852,7 @@ export default function App() {
             isHoliday={isHoliday(calendarDayModal, state)}
             dueUnits={state.units.filter((u) => u.nextDate === calendarDayModal)}
             customColors={state.customColors}
-            onClose={() => setCalendarDayModal(null)}
+            onClose={goBackOrClose}
             onToggleHoliday={handleToggleHoliday}
             onAskDeleteUnit={(id, name) => handleAskDelete('unit', id, name)}
           />
@@ -827,7 +862,7 @@ export default function App() {
           <MemoEditModal
             key="memo-modal"
             unit={findUnit(memoEditModal.unitId)}
-            onClose={() => setMemoEditModal(null)}
+            onClose={goBackOrClose}
             onSaveMemo={handleSaveUnitMemo}
           />
         )}
@@ -837,9 +872,9 @@ export default function App() {
         confirmModal={confirmModal}
         deleteConfirm={deleteConfirm}
         findUnit={findUnit}
-        onCancelFinalChoice={() => setConfirmModal(null)}
+        onCancelFinalChoice={goBackOrClose}
         onExecuteFinalChoice={handleExecuteFinalChoice}
-        onCancelDelete={() => setDeleteConfirm(null)}
+        onCancelDelete={goBackOrClose}
         onExecuteDelete={handleExecuteDelete}
       />
 
