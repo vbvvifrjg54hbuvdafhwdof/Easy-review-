@@ -129,13 +129,9 @@ export default function App() {
   const dayCutoff = state.settings?.dayCutoffHour || 0;
   const today = getToday(dayCutoff);
 
-  // Browser and device back button history navigation hook
-  const { goBackOrClose, pushModalState, handleTabChangeWithHistory } = useNavigationHistory({
+  // Browser and device back button history navigation hook (prevents app exit and returns to default state within current tab)
+  useNavigationHistory({
     activeTab,
-    setActiveTab,
-    setTabDirection,
-    prevTabRef,
-    tabIndexMap: TAB_INDEX_MAP,
     settingsOpen,
     setSettingsOpen,
     presetModalOpen,
@@ -152,11 +148,16 @@ export default function App() {
     setDeleteConfirm,
     finalChoiceId,
     setFinalChoiceId,
-    showToast
   });
 
   const handleSelectTab = (newTab: TabType) => {
-    handleTabChangeWithHistory(newTab);
+    if (newTab === activeTab) return;
+    const oldIdx = TAB_INDEX_MAP[activeTab];
+    const newIdx = TAB_INDEX_MAP[newTab];
+    setTabDirection(newIdx > oldIdx ? 1 : -1);
+    prevTabRef.current = activeTab;
+    setActiveTab(newTab);
+    setFinalChoiceId(null);
   };
 
   // Calculate pending stock items from finished classes
@@ -219,7 +220,6 @@ export default function App() {
     if (!u) return;
     const isLast = u.stepIndex >= u.steps.length - 1;
     if (isLast) {
-      pushModalState('finalChoice', { unitId: u.id });
       setFinalChoiceId(u.id);
       return;
     }
@@ -241,7 +241,6 @@ export default function App() {
   };
 
   const handleRequestFinalPick = (unitId: string, type: 'end' | 'continue') => {
-    pushModalState('confirmFinal', { unitId, type });
     setConfirmModal({ type, unitId });
   };
 
@@ -274,7 +273,8 @@ export default function App() {
         showToast('復習を継続しました');
       }
     }
-    goBackOrClose();
+    setConfirmModal(null);
+    setFinalChoiceId(null);
   };
 
   const handleAddUnit = (name: string, date: string, presetId: string, memo: string) => {
@@ -452,7 +452,7 @@ export default function App() {
       }));
       showToast('プリセットを作成しました');
     }
-    goBackOrClose();
+    setPresetModalOpen(false);
   };
 
   const handleSubmitClassDraft = (
@@ -500,7 +500,6 @@ export default function App() {
     id: string,
     label: string
   ) => {
-    pushModalState('deleteConfirm', { kind, id, label });
     setDeleteConfirm({ kind, id, label });
   };
 
@@ -549,7 +548,7 @@ export default function App() {
         showToast('カラーを削除しました');
         break;
     }
-    goBackOrClose();
+    setDeleteConfirm(null);
   };
 
   const handleAddCustomColor = (hex: string): string => {
@@ -568,7 +567,7 @@ export default function App() {
       ...prev,
       units: prev.units.map((u) => (u.id === unitId ? { ...u, memo: memo.trim() } : u))
     }));
-    goBackOrClose();
+    setMemoEditModal(null);
     showToast('メモを保存しました');
   };
 
@@ -638,10 +637,7 @@ export default function App() {
       <Header
         activeTab={activeTab}
         dayCutoffHour={dayCutoff}
-        onOpenSettings={() => {
-          pushModalState('settings');
-          setSettingsOpen(true);
-        }}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
 
       {/* Main Tab Area with Fast and Smooth Tab Transitions */}
@@ -670,10 +666,7 @@ export default function App() {
                 onRequestFinalPick={handleRequestFinalPick}
                 onOpenMemoModal={(id) => {
                   const u = findUnit(id);
-                  if (u) {
-                    pushModalState('memo', { unitId: u.id });
-                    setMemoEditModal({ unitId: u.id, memo: u.memo || '' });
-                  }
+                  if (u) setMemoEditModal({ unitId: u.id, memo: u.memo || '' });
                 }}
                 onAskDeleteUnit={(id, name) => handleAskDelete('unit', id, name)}
               />
@@ -689,12 +682,10 @@ export default function App() {
                 dayCutoffHour={dayCutoff}
                 onAddUnit={handleAddUnit}
                 onOpenPresetModal={() => {
-                  pushModalState('preset');
                   setPresetDraft({ id: null, name: '', steps: [1] });
                   setPresetModalOpen(true);
                 }}
                 onOpenClassEditModal={() => {
-                  pushModalState('classEdit');
                   setClassEditDraft({
                     id: null,
                     day: '月',
@@ -751,10 +742,7 @@ export default function App() {
                 }}
                 onSelectDate={(date) => setCalendarSelectedDate(date)}
                 onSearchChange={(q) => setCalendarSearchQuery(q)}
-                onOpenDayDetail={(date) => {
-                  pushModalState('dayDetail', { date });
-                  setCalendarDayModal(date);
-                }}
+                onOpenDayDetail={(date) => setCalendarDayModal(date)}
                 onToggleCanceledClass={handleToggleCanceledClass}
               />
             )}
@@ -777,7 +765,7 @@ export default function App() {
             key="settings-modal"
             dayCutoffHour={dayCutoff}
             holidayRanges={state.holidayRanges}
-            onClose={goBackOrClose}
+            onClose={() => setSettingsOpen(false)}
             onUpdateDayCutoff={(h) => {
               setState((prev) => ({
                 ...prev,
@@ -788,7 +776,6 @@ export default function App() {
             onAddHolidayRange={handleAddHolidayRange}
             onAskDeleteHolidayRange={(id, label) => handleAskDelete('holidayRange', id, label)}
             onOpenPresetModal={() => {
-              pushModalState('preset');
               setPresetDraft({ id: null, name: '', steps: [1] });
               setPresetModalOpen(true);
               setSettingsOpen(false);
@@ -803,7 +790,7 @@ export default function App() {
             key="preset-modal"
             presets={state.presets}
             draft={presetDraft}
-            onClose={goBackOrClose}
+            onClose={() => setPresetModalOpen(false)}
             onSavePreset={handleSavePreset}
             onEditPreset={(p) => {
               setPresetDraft({ id: p.id, name: p.name, steps: [...p.steps] });
@@ -819,7 +806,7 @@ export default function App() {
             schedule={state.schedule}
             periodCount={state.periodCount}
             customColors={state.customColors}
-            onClose={goBackOrClose}
+            onClose={() => setClassEditModalOpen(false)}
             onSubmitDraft={handleSubmitClassDraft}
             onEditItem={(item: ScheduleItem) => {
               setClassEditDraft({
@@ -852,7 +839,7 @@ export default function App() {
             isHoliday={isHoliday(calendarDayModal, state)}
             dueUnits={state.units.filter((u) => u.nextDate === calendarDayModal)}
             customColors={state.customColors}
-            onClose={goBackOrClose}
+            onClose={() => setCalendarDayModal(null)}
             onToggleHoliday={handleToggleHoliday}
             onAskDeleteUnit={(id, name) => handleAskDelete('unit', id, name)}
           />
@@ -862,7 +849,7 @@ export default function App() {
           <MemoEditModal
             key="memo-modal"
             unit={findUnit(memoEditModal.unitId)}
-            onClose={goBackOrClose}
+            onClose={() => setMemoEditModal(null)}
             onSaveMemo={handleSaveUnitMemo}
           />
         )}
@@ -872,9 +859,9 @@ export default function App() {
         confirmModal={confirmModal}
         deleteConfirm={deleteConfirm}
         findUnit={findUnit}
-        onCancelFinalChoice={goBackOrClose}
+        onCancelFinalChoice={() => setConfirmModal(null)}
         onExecuteFinalChoice={handleExecuteFinalChoice}
-        onCancelDelete={goBackOrClose}
+        onCancelDelete={() => setDeleteConfirm(null)}
         onExecuteDelete={handleExecuteDelete}
       />
 
