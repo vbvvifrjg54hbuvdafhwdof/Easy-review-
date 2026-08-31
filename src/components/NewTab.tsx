@@ -12,6 +12,8 @@ import { colorFor } from '../utils/color';
 import { getPeriods, getToday } from '../utils/date';
 
 interface NewTabProps {
+  subTab?: SubTabType;
+  onSubTabChange?: (subTab: SubTabType) => void;
   presets: Preset[];
   periodCount: number;
   periodTimes: PeriodTimes;
@@ -34,6 +36,8 @@ interface NewTabProps {
 }
 
 export const NewTab: React.FC<NewTabProps> = ({
+  subTab: controlledSubTab,
+  onSubTabChange,
   presets,
   periodCount,
   periodTimes,
@@ -49,7 +53,15 @@ export const NewTab: React.FC<NewTabProps> = ({
   onSavePeriodTimes,
   onResetPeriodTimes
 }) => {
-  const [subTab, setSubTab] = useState<SubTabType>('add');
+  const [internalSubTab, setInternalSubTab] = useState<SubTabType>('add');
+  const subTab = controlledSubTab !== undefined ? controlledSubTab : internalSubTab;
+  const setSubTab = (newSubTab: SubTabType) => {
+    if (onSubTabChange) {
+      onSubTabChange(newSubTab);
+    } else {
+      setInternalSubTab(newSubTab);
+    }
+  };
   const today = getToday(dayCutoffHour);
 
   // Add unit form state

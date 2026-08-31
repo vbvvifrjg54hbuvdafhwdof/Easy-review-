@@ -17,6 +17,7 @@ import {
   Preset,
   PresetDraft,
   ScheduleItem,
+  SubTabType,
   TabType
 } from './types';
 import {
@@ -95,6 +96,7 @@ export default function App() {
   );
   const [calendarDayModal, setCalendarDayModal] = useState<string | null>(null);
   const [calendarSearchQuery, setCalendarSearchQuery] = useState<string>('');
+  const [newSubTab, setNewSubTab] = useState<SubTabType>('add');
 
   const [classEditModalOpen, setClassEditModalOpen] = useState<boolean>(false);
   const [classEditDraft, setClassEditDraft] = useState<ClassEditDraft>({
@@ -138,16 +140,20 @@ export default function App() {
     setPresetModalOpen,
     classEditModalOpen,
     setClassEditModalOpen,
-    calendarDayModal,
-    setCalendarDayModal,
-    memoEditModal,
-    setMemoEditModal,
-    confirmModal,
-    setConfirmModal,
     deleteConfirm,
     setDeleteConfirm,
+    confirmModal,
+    setConfirmModal,
+    memoEditModal,
+    setMemoEditModal,
     finalChoiceId,
     setFinalChoiceId,
+    newSubTab,
+    setNewSubTab,
+    calendarDayModal,
+    setCalendarDayModal,
+    calendarSearchQuery,
+    setCalendarSearchQuery
   });
 
   const handleSelectTab = (newTab: TabType) => {
@@ -674,6 +680,8 @@ export default function App() {
 
             {activeTab === 'new' && (
               <NewTab
+                subTab={newSubTab}
+                onSubTabChange={setNewSubTab}
                 presets={state.presets}
                 periodCount={state.periodCount}
                 periodTimes={state.periodTimes}
